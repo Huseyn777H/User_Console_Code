@@ -19,9 +19,14 @@ void showUsers();
 void updateUser();
 void deleteUser();
 void createFileIfNotExists();
+
 void formatName(char *str);
-void readString(const char *msg, char *buf, int size);
+int isOnlyLetters(const char *s);
+
+void readName(const char *msg, char *buf, int size);
+void readOptionalString(const char *msg, char *buf, int size);
 int readInt(const char *msg);
+
 int getNextID();
 
 int main()
@@ -89,10 +94,10 @@ void addUser()
     User u;
     u.id = getNextID();
 
-    readString("Name: ", u.name, sizeof(u.name));
+    readName("Name: ", u.name, sizeof(u.name));
     formatName(u.name);
 
-    readString("Surname: ", u.surname, sizeof(u.surname));
+    readName("Surname: ", u.surname, sizeof(u.surname));
     formatName(u.surname);
 
     u.age = readInt("Age: ");
@@ -120,7 +125,7 @@ void showUsers()
     printf("\nID   Name        Surname        Age\n");
     printf("-----------------------------------\n");
 
-    fgets(line, sizeof(line), file);
+    fgets(line, sizeof(line), file); // skip header
 
     while (fgets(line, sizeof(line), file))
     {
@@ -161,18 +166,27 @@ void updateUser()
 
         if (u.id == searchID)
         {
+            char newName[50], newSurname[50];
+
             printf("Updating user: %s %s (Age: %d)\n",
                    u.name, u.surname, u.age);
 
-            char newName[50], newSurname[50];
-            readString("New name (Enter to keep current): ", newName, sizeof(newName));
-            readString("New surname (Enter to keep current): ", newSurname, sizeof(newSurname));
-            int newAge = readInt("New age: ");
+            readOptionalString("New name (Enter to keep): ", newName, sizeof(newName));
+            readOptionalString("New surname (Enter to keep): ", newSurname, sizeof(newSurname));
 
-            if (strlen(newName) > 0) { strcpy(u.name, newName); formatName(u.name); }
-            if (strlen(newSurname) > 0) { strcpy(u.surname, newSurname); formatName(u.surname); }
-            u.age = newAge;
+            if (strlen(newName) > 0 && isOnlyLetters(newName))
+            {
+                strcpy(u.name, newName);
+                formatName(u.name);
+            }
 
+            if (strlen(newSurname) > 0 && isOnlyLetters(newSurname))
+            {
+                strcpy(u.surname, newSurname);
+                formatName(u.surname);
+            }
+
+            u.age = readInt("New age: ");
             found = 1;
         }
 
@@ -217,6 +231,8 @@ void deleteUser()
 
         if (u.id == searchID)
         {
+            printf("Deleting user: %s %s (Age: %d)\n",
+                   u.name, u.surname, u.age);
             found = 1;
             continue;
         }
@@ -237,22 +253,49 @@ void deleteUser()
 
 void formatName(char *str)
 {
-    if (!str[0])
-        return;
+    if (!str[0]) return;
 
     str[0] = toupper(str[0]);
     for (int i = 1; str[i]; i++)
         str[i] = tolower(str[i]);
 }
 
-void readString(const char *msg, char *buf, int size)
+int isOnlyLetters(const char *s)
 {
-    do
+    for (int i = 0; s[i]; i++)
+        if (!isalpha((unsigned char)s[i]))
+            return 0;
+    return 1;
+}
+
+void readName(const char *msg, char *buf, int size)
+{
+    while (1)
     {
         printf("%s", msg);
         fgets(buf, size, stdin);
         buf[strcspn(buf, "\n")] = 0;
-    } while (strlen(buf) == 0);
+
+        if (strlen(buf) == 0)
+        {
+            printf("Empty input not allowed!\n");
+            continue;
+        }
+
+        if (!isOnlyLetters(buf))
+        {
+            printf("Only letters allowed!\n");
+            continue;
+        }
+        return;
+    }
+}
+
+void readOptionalString(const char *msg, char *buf, int size)
+{
+    printf("%s", msg);
+    fgets(buf, size, stdin);
+    buf[strcspn(buf, "\n")] = 0;
 }
 
 int readInt(const char *msg)
@@ -267,7 +310,7 @@ int readInt(const char *msg)
         fgets(buf, sizeof(buf), stdin);
         value = strtol(buf, &end, 10);
 
-        if (end != buf && (*end == '\n' || *end == '\0') && value > 0)
+        if (end != buf && *end == '\n' && value > 0)
             return value;
 
         printf("Invalid number!\n");
