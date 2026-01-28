@@ -5,8 +5,7 @@
 
 #define FILE_NAME "users.txt"
 
-typedef struct
-{
+typedef struct {
     int id;
     char name[50];
     char surname[50];
@@ -20,316 +19,207 @@ void updateUser();
 void deleteUser();
 void createFileIfNotExists();
 
-void formatName(char *str);
+void formatName(char *s);
 int isOnlyLetters(const char *s);
 
 void readName(const char *msg, char *buf, int size);
-void readOptionalString(const char *msg, char *buf, int size);
+void readOptionalName(const char *msg, char *buf, int size);
 int readInt(const char *msg);
+int readOptionalAge(const char *msg, int oldAge);
 
 int getNextID();
 
-int main()
-{
+int main() {
     createFileIfNotExists();
-
-    while (1)
-        showMenu();
-
-    return 0;
+    while (1) showMenu();
 }
 
-void createFileIfNotExists()
-{
-    FILE *file = fopen(FILE_NAME, "r");
-    if (!file)
-    {
-        file = fopen(FILE_NAME, "w");
-        if (!file)
-        {
-            printf("File creation error!\n");
-            exit(1);
-        }
-        fprintf(file, "ID,Name,Surname,Age\n");
+void createFileIfNotExists() {
+    FILE *f = fopen(FILE_NAME, "r");
+    if (!f) {
+        f = fopen(FILE_NAME, "w");
+        fprintf(f, "ID,Name,Surname,Age\n");
     }
-    fclose(file);
+    fclose(f);
 }
 
-void showMenu()
-{
-    printf("\n==============================\n");
-    printf("     USER MANAGEMENT SYSTEM\n");
-    printf("==============================\n");
-    printf("[1] Add user\n");
-    printf("[2] Show users\n");
-    printf("[3] Update user (by ID)\n");
-    printf("[4] Delete user (by ID)\n");
-    printf("[0] Exit\n");
+void showMenu() {
+    printf("\n1. Add User\n2. Show Users\n3. Update User\n4. Delete User\n0. Exit\n");
+    int c = readInt("Choice: ");
 
-    int choice = readInt("Select option: ");
-
-    switch (choice)
-    {
-    case 1: addUser(); break;
-    case 2: showUsers(); break;
-    case 3: updateUser(); break;
-    case 4: deleteUser(); break;
-    case 0:
-        printf("Program finished.\n");
-        exit(0);
-    default:
-        printf("Invalid option!\n");
-    }
+    if (c == 1) addUser();
+    else if (c == 2) showUsers();
+    else if (c == 3) updateUser();
+    else if (c == 4) deleteUser();
+    else if (c == 0) exit(0);
 }
 
-void addUser()
-{
-    FILE *file = fopen(FILE_NAME, "a");
-    if (!file)
-    {
-        printf("File error!\n");
-        return;
-    }
-
+void addUser() {
+    FILE *f = fopen(FILE_NAME, "a");
     User u;
+
     u.id = getNextID();
-
-    readName("Name: ", u.name, sizeof(u.name));
-    formatName(u.name);
-
-    readName("Surname: ", u.surname, sizeof(u.surname));
-    formatName(u.surname);
-
+    readName("Name: ", u.name, 50);
+    readName("Surname: ", u.surname, 50);
     u.age = readInt("Age: ");
 
-    fprintf(file, "%d,%s,%s,%d\n",
-            u.id, u.name, u.surname, u.age);
+    fprintf(f, "%d,%s,%s,%d\n", u.id, u.name, u.surname, u.age);
+    fclose(f);
 
-    fclose(file);
-
-    printf("User added successfully! (ID: %d)\n", u.id);
+    printf("User added (ID=%d)\n", u.id);
 }
 
-void showUsers()
-{
-    FILE *file = fopen(FILE_NAME, "r");
-    if (!file)
-    {
-        printf("File error!\n");
-        return;
-    }
-
+void showUsers() {
+    FILE *f = fopen(FILE_NAME, "r");
     char line[200];
     User u;
 
-    printf("\nID   Name        Surname        Age\n");
-    printf("-----------------------------------\n");
-
-    fgets(line, sizeof(line), file); // skip header
-
-    while (fgets(line, sizeof(line), file))
-    {
+    fgets(line, sizeof(line), f);
+    while (fgets(line, sizeof(line), f)) {
         sscanf(line, "%d,%[^,],%[^,],%d",
                &u.id, u.name, u.surname, &u.age);
-
-        printf("%-4d %-11s %-14s %d\n",
-               u.id, u.name, u.surname, u.age);
+        printf("%d %s %s %d\n", u.id, u.name, u.surname, u.age);
     }
-
-    fclose(file);
+    fclose(f);
 }
 
-void updateUser()
-{
-    int searchID = readInt("Enter ID to update: ");
-
-    FILE *file = fopen(FILE_NAME, "r");
-    FILE *temp = fopen("temp.txt", "w");
-
-    if (!file || !temp)
-    {
-        printf("File error!\n");
-        return;
-    }
+void updateUser() {
+    int id = readInt("Enter ID: ");
+    FILE *f = fopen(FILE_NAME, "r");
+    FILE *t = fopen("temp.txt", "w");
 
     char line[200];
     User u;
     int found = 0;
 
-    fprintf(temp, "ID,Name,Surname,Age\n");
-    fgets(line, sizeof(line), file);
+    fprintf(t, "ID,Name,Surname,Age\n");
+    fgets(line, sizeof(line), f);
 
-    while (fgets(line, sizeof(line), file))
-    {
+    while (fgets(line, sizeof(line), f)) {
         sscanf(line, "%d,%[^,],%[^,],%d",
                &u.id, u.name, u.surname, &u.age);
 
-        if (u.id == searchID)
-        {
-            char newName[50], newSurname[50];
+        if (u.id == id) {
+            printf("Updating: %s %s (%d)\n", u.name, u.surname, u.age);
 
-            printf("Updating user: %s %s (Age: %d)\n",
-                   u.name, u.surname, u.age);
+            readOptionalName("New name (Enter=keep): ", u.name, 50);
+            readOptionalName("New surname (Enter=keep): ", u.surname, 50);
+            u.age = readOptionalAge("New age (Enter=keep): ", u.age);
 
-            readOptionalString("New name (Enter to keep): ", newName, sizeof(newName));
-            readOptionalString("New surname (Enter to keep): ", newSurname, sizeof(newSurname));
-
-            if (strlen(newName) > 0 && isOnlyLetters(newName))
-            {
-                strcpy(u.name, newName);
-                formatName(u.name);
-            }
-
-            if (strlen(newSurname) > 0 && isOnlyLetters(newSurname))
-            {
-                strcpy(u.surname, newSurname);
-                formatName(u.surname);
-            }
-
-            u.age = readInt("New age: ");
             found = 1;
         }
-
-        fprintf(temp, "%d,%s,%s,%d\n",
-                u.id, u.name, u.surname, u.age);
+        fprintf(t, "%d,%s,%s,%d\n", u.id, u.name, u.surname, u.age);
     }
 
-    fclose(file);
-    fclose(temp);
-
+    fclose(f);
+    fclose(t);
     remove(FILE_NAME);
     rename("temp.txt", FILE_NAME);
 
-    printf(found ? "User updated successfully!\n"
-                 : "User not found!\n");
+    printf(found ? "Updated!\n" : "User not found!\n");
 }
 
-void deleteUser()
-{
-    int searchID = readInt("Enter ID to delete: ");
-
-    FILE *file = fopen(FILE_NAME, "r");
-    FILE *temp = fopen("temp.txt", "w");
-
-    if (!file || !temp)
-    {
-        printf("File error!\n");
-        return;
-    }
+void deleteUser() {
+    int id = readInt("Enter ID: ");
+    FILE *f = fopen(FILE_NAME, "r");
+    FILE *t = fopen("temp.txt", "w");
 
     char line[200];
     User u;
     int found = 0;
 
-    fprintf(temp, "ID,Name,Surname,Age\n");
-    fgets(line, sizeof(line), file);
+    fprintf(t, "ID,Name,Surname,Age\n");
+    fgets(line, sizeof(line), f);
 
-    while (fgets(line, sizeof(line), file))
-    {
+    while (fgets(line, sizeof(line), f)) {
         sscanf(line, "%d,%[^,],%[^,],%d",
                &u.id, u.name, u.surname, &u.age);
 
-        if (u.id == searchID)
-        {
-            printf("Deleting user: %s %s (Age: %d)\n",
-                   u.name, u.surname, u.age);
+        if (u.id == id) {
             found = 1;
             continue;
         }
-
-        fprintf(temp, "%d,%s,%s,%d\n",
-                u.id, u.name, u.surname, u.age);
+        fprintf(t, "%d,%s,%s,%d\n", u.id, u.name, u.surname, u.age);
     }
 
-    fclose(file);
-    fclose(temp);
-
+    fclose(f);
+    fclose(t);
     remove(FILE_NAME);
     rename("temp.txt", FILE_NAME);
 
-    printf(found ? "User deleted successfully!\n"
-                 : "User not found!\n");
+    printf(found ? "Deleted!\n" : "User not found!\n");
 }
 
-void formatName(char *str)
-{
-    if (!str[0]) return;
-
-    str[0] = toupper(str[0]);
-    for (int i = 1; str[i]; i++)
-        str[i] = tolower(str[i]);
+void formatName(char *s) {
+    s[0] = toupper(s[0]);
+    for (int i = 1; s[i]; i++) s[i] = tolower(s[i]);
 }
 
-int isOnlyLetters(const char *s)
-{
+int isOnlyLetters(const char *s) {
     for (int i = 0; s[i]; i++)
-        if (!isalpha((unsigned char)s[i]))
-            return 0;
+        if (!isalpha((unsigned char)s[i])) return 0;
     return 1;
 }
 
-void readName(const char *msg, char *buf, int size)
-{
-    while (1)
-    {
+void readName(const char *msg, char *buf, int size) {
+    while (1) {
         printf("%s", msg);
         fgets(buf, size, stdin);
         buf[strcspn(buf, "\n")] = 0;
-
-        if (strlen(buf) == 0)
-        {
-            printf("Empty input not allowed!\n");
-            continue;
+        if (strlen(buf) && isOnlyLetters(buf)) {
+            formatName(buf);
+            return;
         }
-
-        if (!isOnlyLetters(buf))
-        {
-            printf("Only letters allowed!\n");
-            continue;
-        }
-        return;
+        printf("Only letters allowed!\n");
     }
 }
 
-void readOptionalString(const char *msg, char *buf, int size)
-{
-    printf("%s", msg);
-    fgets(buf, size, stdin);
-    buf[strcspn(buf, "\n")] = 0;
+void readOptionalName(const char *msg, char *buf, int size) {
+    char temp[50];
+    while (1) {
+        printf("%s", msg);
+        fgets(temp, size, stdin);
+        temp[strcspn(temp, "\n")] = 0;
+
+        if (strlen(temp) == 0) return;
+        if (isOnlyLetters(temp)) {
+            strcpy(buf, temp);
+            formatName(buf);
+            return;
+        }
+        printf("Only letters allowed!\n");
+    }
 }
 
-int readInt(const char *msg)
-{
+int readOptionalAge(const char *msg, int oldAge) {
     char buf[20];
-    char *end;
-    int value;
+    printf("%s", msg);
+    fgets(buf, sizeof(buf), stdin);
+    if (buf[0] == '\n') return oldAge;
+    int age = atoi(buf);
+    return age > 0 ? age : oldAge;
+}
 
-    while (1)
-    {
+int readInt(const char *msg) {
+    char buf[20];
+    int n;
+    while (1) {
         printf("%s", msg);
         fgets(buf, sizeof(buf), stdin);
-        value = strtol(buf, &end, 10);
-
-        if (end != buf && *end == '\n' && value > 0)
-            return value;
-
+        if (sscanf(buf, "%d", &n) == 1 && n > 0) return n;
         printf("Invalid number!\n");
     }
 }
 
-int getNextID()
-{
-    FILE *file = fopen(FILE_NAME, "r");
-    if (!file)
-        return 1;
-
+int getNextID() {
+    FILE *f = fopen(FILE_NAME, "r");
     char line[200];
     int id = 0;
 
-    fgets(line, sizeof(line), file);
-    while (fgets(line, sizeof(line), file))
+    fgets(line, sizeof(line), f);
+    while (fgets(line, sizeof(line), f))
         sscanf(line, "%d,", &id);
 
-    fclose(file);
+    fclose(f);
     return id + 1;
 }
